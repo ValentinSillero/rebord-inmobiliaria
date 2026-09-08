@@ -3,32 +3,52 @@
 import { Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useState } from 'react';
+import type { PropertyFilterOptions, PropertyFilterState } from '@/lib/property-filters';
 
-type SearchProps = { compact?: boolean };
-export function PropertySearch({ compact = false }: SearchProps) {
+type SearchProps = {
+  compact?: boolean;
+  options: PropertyFilterOptions;
+  initialFilters?: PropertyFilterState;
+};
+
+const emptyFilters: PropertyFilterState = {
+  operation: '',
+  type: '',
+  location: '',
+  bedrooms: null,
+  currency: null,
+  maxPrice: null,
+};
+
+export function PropertySearch({ compact = false, options, initialFilters = emptyFilters }: SearchProps) {
   const router = useRouter();
-  const [operation, setOperation] = useState('');
-  const [type, setType] = useState('');
-  const [location, setLocation] = useState('');
-  const [price, setPrice] = useState('');
-  const [bedrooms, setBedrooms] = useState('');
+  const [operation, setOperation] = useState(initialFilters.operation);
+  const [type, setType] = useState(initialFilters.type);
+  const [location, setLocation] = useState(initialFilters.location);
+  const [price, setPrice] = useState(initialFilters.currency && initialFilters.maxPrice ? `${initialFilters.currency}:${initialFilters.maxPrice}` : '');
+  const [bedrooms, setBedrooms] = useState(initialFilters.bedrooms?.toString() || '');
+
   function submit(event: FormEvent) {
     event.preventDefault();
     const params = new URLSearchParams();
     if (operation) params.set('operacion', operation);
     if (type) params.set('tipo', type);
     if (location) params.set('ubicacion', location);
-    if (price) params.set('precio', price);
+    if (price) {
+      const [currency, amount] = price.split(':');
+      params.set('moneda', currency);
+      params.set('precio', amount);
+    }
     if (bedrooms) params.set('dormitorios', bedrooms);
     router.push(`/propiedades${params.size ? `?${params}` : ''}`);
   }
+
   return <form className={`property-search ${compact ? 'property-search-page' : ''}`} onSubmit={submit}>
-    <label>Operación<select value={operation} onChange={e => setOperation(e.target.value)}><option value="">Todas</option><option>Venta</option><option>Alquiler</option></select></label>
-    <label>Tipo de propiedad<select value={type} onChange={e => setType(e.target.value)}><option value="">Todas</option><option>Casa</option><option>Departamento</option><option>Dúplex</option></select></label>
-    <label>Ubicación<select value={location} onChange={e => setLocation(e.target.value)}><option value="">Todas</option><option>Colón, Entre Ríos</option></select></label>
-    {compact && <label>Ambientes<select><option value="">Todos</option><option>3</option><option>4</option><option>5</option></select></label>}
-    {compact && <label>Dormitorios<select value={bedrooms} onChange={e => setBedrooms(e.target.value)}><option value="">Todos</option><option>1</option><option>2</option><option>3</option></select></label>}
-    <label>Precio<select value={price} onChange={e => setPrice(e.target.value)}><option value="">Hasta USD</option><option value="160000">USD 160.000</option><option value="190000">USD 190.000</option><option value="500000">$ 500.000</option></select></label>
+    <label>Operación<select value={operation} onChange={event => setOperation(event.target.value)}><option value="">Todas</option>{options.operations.map(value => <option value={value} key={value}>{value}</option>)}</select></label>
+    <label>Tipo de propiedad<select value={type} onChange={event => setType(event.target.value)}><option value="">Todas</option>{options.types.map(value => <option value={value} key={value}>{value}</option>)}</select></label>
+    <label>Ubicación<select value={location} onChange={event => setLocation(event.target.value)}><option value="">Todas</option>{options.locations.map(value => <option value={value} key={value}>{value}</option>)}</select></label>
+    {compact && <label>Dormitorios<select value={bedrooms} onChange={event => setBedrooms(event.target.value)}><option value="">Todos</option>{options.bedrooms.map(value => <option value={value} key={value}>{value}+</option>)}</select></label>}
+    <label>Precio<select value={price} onChange={event => setPrice(event.target.value)}><option value="">Sin límite</option>{(['USD', 'ARS'] as const).map(currency => <optgroup label={currency} key={currency}>{options.prices.filter(option => option.currency === currency).map(option => <option value={option.value} key={option.value}>{option.label}</option>)}</optgroup>)}</select></label>
     <button className="button search-button" type="submit"><Search /> Buscar</button>
   </form>;
 }

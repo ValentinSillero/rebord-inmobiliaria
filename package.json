@@ -6,18 +6,28 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "db:migration:run": "tsx scripts/db.ts migration:run",
+    "db:migration:revert": "tsx scripts/db.ts migration:revert",
+    "db:migration:show": "tsx scripts/db.ts migration:show",
+    "db:test": "tsx scripts/db.ts test"
   },
   "dependencies": {
+    "dotenv": "^17.4.2",
     "lucide-react": "^0.468.0",
     "next": "^15.1.0",
+    "pg": "^8.23.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "reflect-metadata": "^0.2.2",
+    "server-only": "^0.0.1",
+    "typeorm": "^1.1.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.1",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
+    "tsx": "^4.23.13",
     "typescript": "^5.7.2"
   }
 }

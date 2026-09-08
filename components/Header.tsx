@@ -8,7 +8,7 @@ import { Brand } from './Brand';
 import { generalWhatsappMessage, whatsappUrl } from '@/lib/whatsapp';
 
 const links = [
-  ['Inicio', '/'], ['Propiedades', '/propiedades'], ['Venta', '/propiedades?operacion=Venta'], ['Alquiler', '/propiedades?operacion=Alquiler'], ['Tasaciones', '/tasaciones'], ['Nosotros', '/#nosotros'], ['Contacto', '/#contacto'],
+  ['Inicio', '/'], ['Propiedades', '/propiedades'], ['Tasaciones', '/tasaciones'], ['Nosotros', '/#nosotros'], ['Contacto', '/#contacto'],
 ];
 
 export function Header() {
