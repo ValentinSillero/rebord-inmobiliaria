@@ -53,7 +53,7 @@ export default async function PropertyDetail({ params }: { params: Promise<{ slu
           <p>Atención personalizada para esta propiedad.</p>
         </aside>
       </section>
-      <section className="section related"><div className="container"><div className="section-heading"><h2>También te puede interesar</h2></div><div className="property-grid related-grid">{related.map(item => <PropertyCard property={item} key={item.slug} />)}</div></div></section>
+      <section className="section related"><div className="container"><div className="section-heading"><h2>También te puede interesar</h2></div><div className="property-grid related-grid">{related.map(item => <PropertyCard property={item} imageSizes="(max-width: 360px) calc(100vw - 24px), (max-width: 767px) calc(100vw - 32px), (max-width: 1280px) calc(33.333vw - 29.333px), 397px" key={item.slug} />)}</div></div></section>
     </main>
     <Footer />
     <WhatsAppButton />

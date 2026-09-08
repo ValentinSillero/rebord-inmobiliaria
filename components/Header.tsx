@@ -16,7 +16,7 @@ export function Header() {
   const pathname = usePathname();
   return <header className="site-header">
     <div className="header-inner">
-      <Link href="/" aria-label="Ir al inicio"><Brand /></Link>
+      <Link href="/" aria-label="Ir al inicio"><Brand priority sizes="(max-width: 860px) 60px, 72px" /></Link>
       <nav className="desktop-nav" aria-label="Navegación principal">
         {links.map(([label, href]) => <Link className={pathname === href || (href === '/propiedades' && pathname.startsWith('/propiedades')) ? 'active' : ''} href={href} key={label}>{label}</Link>)}
       </nav>
