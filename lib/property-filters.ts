@@ -38,7 +38,7 @@ export type PropertyFilterOptions = {
   prices: PropertyPriceOption[];
 };
 
-type FilterableProperty = {
+export type PropertyFilterRecord = {
   operation: string;
   type: string | null;
   location: string | null;
@@ -194,7 +194,7 @@ function pickThresholds(values: number[], limit = 6) {
   return [...new Set(indexes.map(index => unique[index]))];
 }
 
-export function createPropertyFilterOptions(properties: FilterableProperty[]): PropertyFilterOptions {
+export function createPropertyFilterOptions(properties: PropertyFilterRecord[]): PropertyFilterOptions {
   const operations = [...new Set(properties.map(property => normalizeOperation(property.operation)).filter(Boolean))];
   const types = [...new Set(properties.map(property => property.type).filter((value): value is string => Boolean(value)))].sort((a, b) => a.localeCompare(b, 'es'));
   const locations = [...new Set(properties.map(property => property.location).filter((value): value is string => Boolean(value)))].sort((a, b) => a.localeCompare(b, 'es'));
@@ -208,7 +208,59 @@ export function createPropertyFilterOptions(properties: FilterableProperty[]): P
   return { operations, types, locations, bedrooms, prices };
 }
 
-export function filterProperties<T extends FilterableProperty>(properties: T[], filters: PropertyFilterState) {
+export function createFacetedPropertyFilterOptions(
+  properties: PropertyFilterRecord[],
+  filters: PropertyFilterState,
+  baseOptions: PropertyFilterOptions,
+): PropertyFilterOptions {
+  const operations = new Set<string>();
+  const types = new Set<string>();
+  const locations = new Set<string>();
+  let maximumBedrooms = 0;
+  const minimumPrices: Partial<Record<PropertyCurrency, number>> = {};
+
+  for (const property of properties) {
+    const bedroomCounts = property.bedroomCounts || (property.bedrooms ? [property.bedrooms] : []);
+    const prices = property.prices || (property.price ? [property.price] : []);
+    const operationMatches = !filters.operation || property.operation === filters.operation;
+    const typeMatches = !filters.type || property.type === filters.type;
+    const locationMatches = !filters.location || property.location === filters.location;
+    const bedroomsMatch = !filters.bedrooms || bedroomCounts.some(count => count >= filters.bedrooms!);
+    const priceMatches = !filters.currency || !filters.maxPrice
+      || (property.currency === filters.currency && prices.some(price => price <= filters.maxPrice!));
+
+    // Operación remains a top-level switch, but its values still come only from real data.
+    const operation = normalizeOperation(property.operation);
+    if (operation) operations.add(operation);
+
+    if (operationMatches && locationMatches && bedroomsMatch && priceMatches && property.type) {
+      types.add(property.type);
+    }
+    if (operationMatches && typeMatches && bedroomsMatch && priceMatches && property.location) {
+      locations.add(property.location);
+    }
+    if (operationMatches && typeMatches && locationMatches && priceMatches && bedroomCounts.length > 0) {
+      maximumBedrooms = Math.max(maximumBedrooms, ...bedroomCounts);
+    }
+    if (operationMatches && typeMatches && locationMatches && bedroomsMatch && property.currency && prices.length > 0) {
+      const minimum = Math.min(...prices);
+      minimumPrices[property.currency] = Math.min(minimumPrices[property.currency] ?? Number.POSITIVE_INFINITY, minimum);
+    }
+  }
+
+  return {
+    operations: baseOptions.operations.filter(value => operations.has(value)),
+    types: baseOptions.types.filter(value => types.has(value)),
+    locations: baseOptions.locations.filter(value => locations.has(value)),
+    bedrooms: baseOptions.bedrooms.filter(value => value <= maximumBedrooms),
+    prices: baseOptions.prices.filter(option => {
+      const minimum = minimumPrices[option.currency];
+      return minimum !== undefined && minimum <= option.amount;
+    }),
+  };
+}
+
+export function filterProperties<T extends PropertyFilterRecord>(properties: T[], filters: PropertyFilterState) {
   const operation = normalizeOperation(filters.operation);
   const type = normalizePropertyType(filters.type);
   const location = normalizeFilterText(filters.location);

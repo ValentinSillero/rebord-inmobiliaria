@@ -2,13 +2,21 @@
 
 import { Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { FormEvent, useState } from 'react';
-import type { PropertyFilterOptions, PropertyFilterState } from '@/lib/property-filters';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  createFacetedPropertyFilterOptions,
+  type PropertyCurrency,
+  type PropertyFilterOptions,
+  type PropertyFilterRecord,
+  type PropertyFilterState,
+} from '@/lib/property-filters';
 
 type SearchProps = {
   compact?: boolean;
   options: PropertyFilterOptions;
+  facetRecords?: PropertyFilterRecord[];
   initialFilters?: PropertyFilterState;
+  initialSort?: 'recent' | 'low' | 'high';
 };
 
 const emptyFilters: PropertyFilterState = {
@@ -20,35 +28,91 @@ const emptyFilters: PropertyFilterState = {
   maxPrice: null,
 };
 
-export function PropertySearch({ compact = false, options, initialFilters = emptyFilters }: SearchProps) {
-  const router = useRouter();
-  const [operation, setOperation] = useState(initialFilters.operation);
-  const [type, setType] = useState(initialFilters.type);
-  const [location, setLocation] = useState(initialFilters.location);
-  const [price, setPrice] = useState(initialFilters.currency && initialFilters.maxPrice ? `${initialFilters.currency}:${initialFilters.maxPrice}` : '');
-  const [bedrooms, setBedrooms] = useState(initialFilters.bedrooms?.toString() || '');
+function priceValue(filters: PropertyFilterState) {
+  return filters.currency && filters.maxPrice ? `${filters.currency}:${filters.maxPrice}` : '';
+}
 
-  function submit(event: FormEvent) {
-    event.preventDefault();
+export function PropertySearch({ compact = false, options, facetRecords, initialFilters = emptyFilters, initialSort = 'recent' }: SearchProps) {
+  const router = useRouter();
+  const [filters, setFilters] = useState(initialFilters);
+  const navigationPending = useRef(false);
+  const availableOptions = useMemo(() => facetRecords
+    ? createFacetedPropertyFilterOptions(facetRecords, filters, options)
+    : options, [facetRecords, filters, options]);
+
+  function navigate(nextFilters: PropertyFilterState) {
     const params = new URLSearchParams();
-    if (operation) params.set('operacion', operation);
-    if (type) params.set('tipo', type);
-    if (location) params.set('ubicacion', location);
-    if (price) {
-      const [currency, amount] = price.split(':');
-      params.set('moneda', currency);
-      params.set('precio', amount);
+    if (nextFilters.operation) params.set('operacion', nextFilters.operation);
+    if (nextFilters.type) params.set('tipo', nextFilters.type);
+    if (nextFilters.location) params.set('ubicacion', nextFilters.location);
+    if (nextFilters.currency && nextFilters.maxPrice) {
+      params.set('moneda', nextFilters.currency);
+      params.set('precio', nextFilters.maxPrice.toString());
     }
-    if (bedrooms) params.set('dormitorios', bedrooms);
+    if (nextFilters.bedrooms) params.set('dormitorios', nextFilters.bedrooms.toString());
+    if (compact && initialSort !== 'recent') params.set('orden', initialSort);
+    if (compact) params.set('page', '1');
     router.push(`/propiedades${params.size ? `?${params}` : ''}`);
   }
 
+  function updateFilters(update: Partial<PropertyFilterState>) {
+    if (facetRecords) navigationPending.current = true;
+    setFilters(current => ({ ...current, ...update }));
+  }
+
+  useEffect(() => {
+    if (!facetRecords) return;
+
+    if (filters.type && !availableOptions.types.includes(filters.type)) {
+      navigationPending.current = true;
+      setFilters(current => ({ ...current, type: '' }));
+      return;
+    }
+    if (filters.location && !availableOptions.locations.includes(filters.location)) {
+      navigationPending.current = true;
+      setFilters(current => ({ ...current, location: '' }));
+      return;
+    }
+    if (filters.bedrooms && !availableOptions.bedrooms.includes(filters.bedrooms)) {
+      navigationPending.current = true;
+      setFilters(current => ({ ...current, bedrooms: null }));
+      return;
+    }
+    if (priceValue(filters) && !availableOptions.prices.some(option => option.value === priceValue(filters))) {
+      navigationPending.current = true;
+      setFilters(current => ({ ...current, currency: null, maxPrice: null }));
+      return;
+    }
+    if (navigationPending.current) {
+      navigationPending.current = false;
+      navigate(filters);
+    }
+  }, [availableOptions, facetRecords, filters]);
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    navigationPending.current = false;
+    navigate(filters);
+  }
+
+  function changePrice(value: string) {
+    if (!value) {
+      updateFilters({ currency: null, maxPrice: null });
+      return;
+    }
+    const [currency, amount] = value.split(':');
+    updateFilters({ currency: currency as PropertyCurrency, maxPrice: Number(amount) });
+  }
+
   return <form className={`property-search ${compact ? 'property-search-page' : ''}`} onSubmit={submit}>
-    <label>Operación<select value={operation} onChange={event => setOperation(event.target.value)}><option value="">Todas</option>{options.operations.map(value => <option value={value} key={value}>{value}</option>)}</select></label>
-    <label>Tipo de propiedad<select value={type} onChange={event => setType(event.target.value)}><option value="">Todas</option>{options.types.map(value => <option value={value} key={value}>{value}</option>)}</select></label>
-    <label>Ubicación<select value={location} onChange={event => setLocation(event.target.value)}><option value="">Todas</option>{options.locations.map(value => <option value={value} key={value}>{value}</option>)}</select></label>
-    {compact && <label>Dormitorios<select value={bedrooms} onChange={event => setBedrooms(event.target.value)}><option value="">Todos</option>{options.bedrooms.map(value => <option value={value} key={value}>{value}+</option>)}</select></label>}
-    <label>Precio<select value={price} onChange={event => setPrice(event.target.value)}><option value="">Sin límite</option>{(['USD', 'ARS'] as const).map(currency => <optgroup label={currency} key={currency}>{options.prices.filter(option => option.currency === currency).map(option => <option value={option.value} key={option.value}>{option.label}</option>)}</optgroup>)}</select></label>
+    <label>Operación<select value={filters.operation} onChange={event => updateFilters({ operation: event.target.value })}><option value="">Todas</option>{availableOptions.operations.map(value => <option value={value} key={value}>{value}</option>)}</select></label>
+    <label>Tipo de propiedad<select value={filters.type} onChange={event => updateFilters({ type: event.target.value })}><option value="">Todas</option>{availableOptions.types.map(value => <option value={value} key={value}>{value}</option>)}</select></label>
+    <label>Ubicación<select value={filters.location} onChange={event => updateFilters({ location: event.target.value })}><option value="">Todas</option>{availableOptions.locations.map(value => <option value={value} key={value}>{value}</option>)}</select></label>
+    {compact && <label>Dormitorios<select value={filters.bedrooms?.toString() || ''} onChange={event => updateFilters({ bedrooms: event.target.value ? Number(event.target.value) : null })}><option value="">Todos</option>{availableOptions.bedrooms.map(value => <option value={value} key={value}>{value}+</option>)}</select></label>}
+    <label>Precio<select value={priceValue(filters)} onChange={event => changePrice(event.target.value)}><option value="">Sin límite</option>{(['USD', 'ARS'] as const).map(currency => {
+      const prices = availableOptions.prices.filter(option => option.currency === currency);
+      return prices.length > 0 ? <optgroup label={currency} key={currency}>{prices.map(option => <option value={option.value} key={option.value}>{option.label}</option>)}</optgroup> : null;
+    })}</select></label>
     <button className="button search-button" type="submit"><Search /> Buscar</button>
   </form>;
 }

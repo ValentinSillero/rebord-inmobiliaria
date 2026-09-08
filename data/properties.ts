@@ -15,6 +15,7 @@ import {
   derivePropertyType,
   deriveRoomCounts,
   type PropertyCurrency,
+  type PropertyFilterRecord,
   type PropertyKind,
 } from '@/lib/property-filters';
 
@@ -222,6 +223,16 @@ const importedProperties2020 = transformInstagramPosts((instagramImport2020 as I
 }, true, true);
 
 export const properties: Property[] = [...importedProperties2026, ...importedProperties2025, ...importedProperties2024, ...importedProperties2023, ...importedProperties2022, ...importedProperties2021, ...importedProperties2020];
+export const propertyFilterRecords: PropertyFilterRecord[] = properties.map(property => ({
+  operation: property.operation,
+  type: property.type,
+  location: property.location,
+  bedrooms: property.bedrooms,
+  bedroomCounts: property.bedroomCounts,
+  price: property.price,
+  prices: property.prices,
+  currency: property.currency,
+}));
 export const propertyFilterOptions = createPropertyFilterOptions(properties);
 
 // Estadísticas demostrativas, centralizadas para su futura actualización.
