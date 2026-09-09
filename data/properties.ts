@@ -236,9 +236,18 @@ export const propertyFilterRecords: PropertyFilterRecord[] = properties.map(prop
 }));
 export const propertyFilterOptions = createPropertyFilterOptions(properties);
 
+export const availablePropertiesCount = new Set(properties.map(property => property.slug)).size;
+
+export function formatAvailablePropertiesCount(total: number) {
+  if (total < 50) return total.toString();
+  return `+${Math.floor(total / 50) * 50}`;
+}
+
+export const availablePropertiesStatValue = formatAvailablePropertiesCount(availablePropertiesCount);
+
 // Estadísticas demostrativas, centralizadas para su futura actualización.
 export const stats = [
-  { value: '+450', label: 'Propiedades disponibles' },
+  { value: availablePropertiesStatValue, label: 'Propiedades disponibles' },
   { value: '+1.000', label: 'Clientes acompañados' },
   { value: '+6', label: 'Años de experiencia' },
   { value: '100%', label: 'Compromiso y confianza' },
