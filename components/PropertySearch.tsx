@@ -4,6 +4,7 @@ import { Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  createPropertyFilterSearchParams,
   createFacetedPropertyFilterOptions,
   type PropertyCurrency,
   type PropertyFilterOptions,
@@ -41,18 +42,10 @@ export function PropertySearch({ compact = false, options, facetRecords, initial
     : options, [facetRecords, filters, options]);
 
   function navigate(nextFilters: PropertyFilterState) {
-    const params = new URLSearchParams();
-    if (nextFilters.operation) params.set('operacion', nextFilters.operation);
-    if (nextFilters.type) params.set('tipo', nextFilters.type);
-    if (nextFilters.location) params.set('ubicacion', nextFilters.location);
-    if (nextFilters.currency && nextFilters.maxPrice) {
-      params.set('moneda', nextFilters.currency);
-      params.set('precio', nextFilters.maxPrice.toString());
-    }
-    if (nextFilters.bedrooms) params.set('dormitorios', nextFilters.bedrooms.toString());
+    const params = createPropertyFilterSearchParams(nextFilters);
     if (compact && initialSort !== 'recent') params.set('orden', initialSort);
-    if (compact) params.set('page', '1');
-    router.push(`/propiedades${params.size ? `?${params}` : ''}`);
+    params.set('page', '1');
+    router.push(`/propiedades?${params.toString()}`);
   }
 
   function updateFilters(update: Partial<PropertyFilterState>) {
@@ -85,7 +78,7 @@ export function PropertySearch({ compact = false, options, facetRecords, initial
     }
     if (navigationPending.current) {
       navigationPending.current = false;
-      navigate(filters);
+      if (compact) navigate(filters);
     }
   }, [availableOptions, facetRecords, filters]);
 

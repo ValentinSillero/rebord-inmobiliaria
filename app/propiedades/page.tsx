@@ -11,23 +11,18 @@ import { WhatsAppButton } from '@/components/WhatsAppButton';
 import { properties, propertyFilterOptions, propertyFilterRecords } from '@/data/properties';
 import {
   filterProperties,
-  normalizeFilterText,
-  normalizeOperation,
-  normalizePropertyType,
-  type PropertyCurrency,
-  type PropertyFilterState,
+  parsePropertyFilterState,
+  type PropertyFilterSearchParams,
 } from '@/lib/property-filters';
 
 const PROPERTIES_PER_PAGE = 12;
 const listingImageSizes = '(max-width: 360px) calc(100vw - 24px), (max-width: 767px) calc(100vw - 32px), (max-width: 1150px) calc(50vw - 36px), (max-width: 1280px) calc(33.333vw - 32px), 395px';
 
-type RawSearchParams = Record<string, string | string[] | undefined>;
-
 function firstValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] || '' : value || '';
 }
 
-function toQueryString(searchParams: RawSearchParams) {
+function toQueryString(searchParams: PropertyFilterSearchParams) {
   const params = new URLSearchParams();
 
   Object.entries(searchParams).forEach(([key, value]) => {
@@ -36,24 +31,6 @@ function toQueryString(searchParams: RawSearchParams) {
   });
 
   return params.toString();
-}
-
-function getFilters(searchParams: RawSearchParams): PropertyFilterState {
-  const requestedLocation = normalizeFilterText(firstValue(searchParams.ubicacion)).replace(/,? entre rios$/, '');
-  const location = propertyFilterOptions.locations.find(value => normalizeFilterText(value) === requestedLocation) || '';
-  const currencyValue = firstValue(searchParams.moneda);
-  const currency: PropertyCurrency | null = currencyValue === 'USD' || currencyValue === 'ARS' ? currencyValue : null;
-  const maxPriceValue = Number(firstValue(searchParams.precio));
-  const bedroomValue = Number(firstValue(searchParams.dormitorios));
-
-  return {
-    operation: normalizeOperation(firstValue(searchParams.operacion)),
-    type: normalizePropertyType(firstValue(searchParams.tipo)),
-    location,
-    bedrooms: Number.isInteger(bedroomValue) && bedroomValue > 0 ? bedroomValue : null,
-    currency,
-    maxPrice: currency && Number.isFinite(maxPriceValue) && maxPriceValue > 0 ? maxPriceValue : null,
-  };
 }
 
 function getSort(value: string): PropertySort {
@@ -65,9 +42,9 @@ function getPage(value: string) {
   return Number.isInteger(page) && page > 0 ? page : 1;
 }
 
-export default async function PropertiesPage({ searchParams }: { searchParams: Promise<RawSearchParams> }) {
+export default async function PropertiesPage({ searchParams }: { searchParams: Promise<PropertyFilterSearchParams> }) {
   const currentSearchParams = await searchParams;
-  const filters = getFilters(currentSearchParams);
+  const filters = parsePropertyFilterState(currentSearchParams, propertyFilterOptions);
   const sort = getSort(firstValue(currentSearchParams.orden));
   const filteredProperties = filterProperties(properties, filters);
   const sortedProperties = sort === 'recent' ? filteredProperties : [...filteredProperties].sort((a, b) => {

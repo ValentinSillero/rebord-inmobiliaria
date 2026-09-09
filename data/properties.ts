@@ -5,6 +5,7 @@ import instagramImport2023 from './import/rebord_importacion_web_2023.json';
 import instagramImport2024 from './import/rebord_importacion_web_2024.json';
 import instagramImport2025 from './import/rebord_importacion_web_2025.json';
 import instagramImport2026 from './import/rebord_importacion_web_2026.json';
+import { auditedPropertyLocation } from './property-location-audit';
 import { removeEmojis } from '@/lib/text';
 import { cleanInstagramDescription, parseInstagramDescription, type PropertyDescriptionSections } from '@/lib/property-description';
 import {
@@ -110,7 +111,7 @@ function deriveLegacyPriceText(description: string) {
 const recentPosts = instagramImport2026 as InstagramImport[];
 const recentSlugs = new Set(recentPosts.map(post => post.slug_sugerido));
 
-function transformInstagramPosts(posts: InstagramImport[], resolveSlug = (post: InstagramImport) => post.slug_sugerido, recognizeCompactSurfaces = false, useDetectedLocation = false) {
+function transformInstagramPosts(posts: InstagramImport[], resolveSlug = (post: InstagramImport) => post.slug_sugerido, recognizeCompactSurfaces = false) {
   return posts
   .filter(post => post.estado_web === 'publicar')
   .filter(post => !omittedImportIds.has(post.id_importacion))
@@ -140,7 +141,7 @@ function transformInstagramPosts(posts: InstagramImport[], resolveSlug = (post: 
       operation: operationFromOriginal(post),
       type: derivePropertyType(post.titulo_instagram, description, post.tipo_detectado),
       name: removeEmojis(post.titulo_instagram),
-      location: derivePropertyLocation(post.titulo_instagram, description, descriptionSections.location, useDetectedLocation ? post.localidad_detectada || '' : undefined),
+      location: auditedPropertyLocation(post.id_importacion, derivePropertyLocation(post.titulo_instagram, description, descriptionSections.location)),
       bedrooms: bedroomCounts.length === 1 ? bedroomCounts[0] : null,
       bathrooms: null,
       area: null,
@@ -176,7 +177,7 @@ const importedProperties2024 = transformInstagramPosts(instagramImport2024 as In
   while (occupiedSlugs.has(slug)) slug = `${baseSlug}-${suffix++}`;
   occupiedSlugs.add(slug);
   return slug;
-}, true, true);
+}, true);
 const importedProperties2023 = transformInstagramPosts(instagramImport2023 as InstagramImport[], post => {
   const baseSlug = occupiedSlugs.has(post.slug_sugerido) ? `${post.slug_sugerido}-2023` : post.slug_sugerido;
   let slug = baseSlug;
@@ -184,7 +185,7 @@ const importedProperties2023 = transformInstagramPosts(instagramImport2023 as In
   while (occupiedSlugs.has(slug)) slug = `${baseSlug}-${suffix++}`;
   occupiedSlugs.add(slug);
   return slug;
-}, true, true);
+}, true);
 const importedProperties2022 = transformInstagramPosts((instagramImport2022 as InstagramImport[]).map(post => ({
   ...post,
   titulo_instagram: repairLegacyImportText(post.titulo_instagram),
@@ -196,7 +197,7 @@ const importedProperties2022 = transformInstagramPosts((instagramImport2022 as I
   while (occupiedSlugs.has(slug)) slug = `${baseSlug}-${suffix++}`;
   occupiedSlugs.add(slug);
   return slug;
-}, true, true);
+}, true);
 const importedProperties2021 = transformInstagramPosts((instagramImport2021 as InstagramImport[]).map(post => ({
   ...post,
   titulo_instagram: repairLegacyImportText(post.titulo_instagram),
@@ -208,7 +209,7 @@ const importedProperties2021 = transformInstagramPosts((instagramImport2021 as I
   while (occupiedSlugs.has(slug)) slug = `${baseSlug}-${suffix++}`;
   occupiedSlugs.add(slug);
   return slug;
-}, true, true);
+}, true);
 const importedProperties2020 = transformInstagramPosts((instagramImport2020 as InstagramImport[]).map(post => ({
   ...post,
   titulo_instagram: repairLegacyImportText(post.titulo_instagram),
@@ -220,7 +221,7 @@ const importedProperties2020 = transformInstagramPosts((instagramImport2020 as I
   while (occupiedSlugs.has(slug)) slug = `${baseSlug}-${suffix++}`;
   occupiedSlugs.add(slug);
   return slug;
-}, true, true);
+}, true);
 
 export const properties: Property[] = [...importedProperties2026, ...importedProperties2025, ...importedProperties2024, ...importedProperties2023, ...importedProperties2022, ...importedProperties2021, ...importedProperties2020];
 export const propertyFilterRecords: PropertyFilterRecord[] = properties.map(property => ({

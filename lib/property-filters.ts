@@ -49,6 +49,17 @@ export type PropertyFilterRecord = {
   currency?: PropertyCurrency | null;
 };
 
+export type PropertyFilterSearchParams = Record<string, string | string[] | undefined>;
+
+export const propertyFilterParamNames = {
+  operation: 'operacion',
+  type: 'tipo',
+  location: 'ubicacion',
+  bedrooms: 'dormitorios',
+  currency: 'moneda',
+  maxPrice: 'precio',
+} as const;
+
 const numberWords: Record<string, number> = {
   un: 1,
   una: 1,
@@ -118,37 +129,56 @@ export function derivePropertyType(title: string, description: string, detectedT
   return 'Propiedad';
 }
 
-export function derivePropertyLocation(title: string, description: string, locationLines: string[], detectedLocation?: string) {
-  const source = normalizeFilterText([title, ...locationLines, description].join(' '));
-  if (detectedLocation !== undefined) {
-    const heading = normalizeFilterText(title);
-    if (/\bpronunciamiento\b/.test(heading)) return 'Pronunciamiento';
-    if (/\bubajay\b/.test(heading)) return 'Ubajay';
-  }
-
+function locationFromText(sourceText: string) {
+  const source = normalizeFilterText(sourceText);
+  if (/\bvilla libertad\b|\bv libertad\b/.test(source)) return 'Villa Libertad';
+  if (/\bsanta teresita\b/.test(source)) return 'Santa Teresita';
+  if (/\bcapilla del monte\b/.test(source)) return 'Capilla del Monte';
+  if (/\bpueblo liebig\b|\ben liebig\b/.test(source)) return 'Pueblo Liebig';
+  if (/\bla clarita\b/.test(source)) return 'La Clarita';
   if (/\bel brillante\b/.test(source)) return 'El Brillante';
   if (/\bla paloma\b/.test(source)) return 'La Paloma';
   if (/\bvilla elisa\b/.test(source)) return 'Villa Elisa';
   if (/\bconcepcion del uruguay\b/.test(source)) return 'Concepción del Uruguay';
+  if (/\bfederacion\b/.test(source)) return 'Federación';
+  if (/\bpronunciamiento\b/.test(source)) return 'Pronunciamiento';
+  if (/\bubajay\b/.test(source)) return 'Ubajay';
+  if (/\bmiramar\b/.test(source)) return 'Miramar';
   if (/\bejido(?: rural)?(?: de)? san jose\b|\bzona ejido de san jose\b/.test(source)) return 'Ejido de San José';
   if (/\bejido(?: rural)?(?: de)? colon\b/.test(source)) return 'Ejido de Colón';
+  if (/\bcolonia san anselmo\b/.test(source)) return 'Colonia San Anselmo';
   if (/\bcolonia hocker\b/.test(source)) return 'Colonia Hocker';
   if (/\bcolonia hugues\b/.test(source)) return 'Colonia Hugues';
+  if (/\bcolonia san jose\b/.test(source)) return 'Colonia San José';
   if (/\bsan jose\b/.test(source)) return 'San José';
   if (/\bcolon\b/.test(source)) return 'Colón';
-  if (detectedLocation !== undefined) {
-    if (/\bcapilla del monte\b/.test(source)) return 'Capilla del Monte';
-    if (/\bmiramar\b/.test(source)) return 'Miramar';
-
-    const detected = normalizeFilterText(detectedLocation);
-    if (detected === 'pronunciamiento') return 'Pronunciamiento';
-    if (detected === 'ubajay') return 'Ubajay';
-    if (detected === 'colon') return 'Colón';
-    if (detected === 'san jose') return 'San José';
-    if (detected === 'concepcion del uruguay') return 'Concepción del Uruguay';
-    if (detected === 'villa elisa') return 'Villa Elisa';
-  }
   return null;
+}
+
+function detailedLocationFromText(sourceText: string) {
+  const source = normalizeFilterText(sourceText);
+  if (/\bvilla libertad\b|\bv libertad\b/.test(source)) return 'Villa Libertad';
+  if (/\bpueblo liebig\b|\ben liebig\b/.test(source)) return 'Pueblo Liebig';
+  if (/\bla clarita\b/.test(source)) return 'La Clarita';
+  if (/\bel brillante\b/.test(source)) return 'El Brillante';
+  if (/\bejido(?: rural)?(?: de)? san jose\b|\bzona ejido de san jose\b/.test(source)) return 'Ejido de San José';
+  if (/\bejido(?: rural)?(?: de)? colon\b/.test(source)) return 'Ejido de Colón';
+  if (/\bcolonia san anselmo\b/.test(source)) return 'Colonia San Anselmo';
+  if (/\bcolonia hocker\b/.test(source)) return 'Colonia Hocker';
+  if (/\bcolonia hugues\b/.test(source)) return 'Colonia Hugues';
+  if (/\bcolonia san jose\b/.test(source)) return 'Colonia San José';
+  return null;
+}
+
+export function derivePropertyLocation(title: string, description: string, locationLines: string[]) {
+  // El título describe el inmueble y tiene prioridad sobre referencias a
+  // permutas, destinos cercanos o nombres de calles presentes en el cuerpo.
+  // Una sublocalidad explícita (ejido, colonia o barrio reconocido) es más
+  // precisa y por eso prevalece sobre la ciudad general indicada en el título.
+  const fullPropertyText = [title, ...locationLines, description].join(' ');
+  return detailedLocationFromText(fullPropertyText)
+    || locationFromText(title)
+    || locationFromText([...locationLines, description].join(' '));
 }
 
 function parseAmount(value: string) {
@@ -185,6 +215,52 @@ export function normalizePropertyType(value: string) {
   if (normalized === 'duplex') return 'Dúplex';
   const types: PropertyKind[] = ['Casa', 'Departamento', 'Terreno', 'Dúplex', 'Galpón', 'Campo', 'Local comercial', 'Fondo de comercio', 'PH', 'Complejo turístico', 'Desarrollo', 'Propiedad'];
   return types.find(type => normalizeFilterText(type) === normalized) || '';
+}
+
+function firstSearchParamValue(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] || '' : value || '';
+}
+
+export function parsePropertyFilterState(
+  searchParams: PropertyFilterSearchParams,
+  options: PropertyFilterOptions,
+): PropertyFilterState {
+  const requestedLocation = normalizeFilterText(firstSearchParamValue(searchParams[propertyFilterParamNames.location]))
+    .replace(/,? entre rios$/, '');
+  const location = options.locations.find(value => normalizeFilterText(value) === requestedLocation) || '';
+  const currencyValue = firstSearchParamValue(searchParams[propertyFilterParamNames.currency]).toUpperCase();
+  const currency: PropertyCurrency | null = currencyValue === 'USD' || currencyValue === 'ARS' ? currencyValue : null;
+  const maxPriceValue = Number(firstSearchParamValue(searchParams[propertyFilterParamNames.maxPrice]));
+  const bedroomValue = Number(firstSearchParamValue(searchParams[propertyFilterParamNames.bedrooms]));
+
+  return {
+    operation: normalizeOperation(firstSearchParamValue(searchParams[propertyFilterParamNames.operation])),
+    type: normalizePropertyType(firstSearchParamValue(searchParams[propertyFilterParamNames.type])),
+    location,
+    bedrooms: Number.isInteger(bedroomValue) && bedroomValue > 0 ? bedroomValue : null,
+    currency,
+    maxPrice: currency && Number.isFinite(maxPriceValue) && maxPriceValue > 0 ? maxPriceValue : null,
+  };
+}
+
+export function createPropertyFilterSearchParams(filters: PropertyFilterState) {
+  const params = new URLSearchParams();
+  const operation = normalizeOperation(filters.operation);
+  const type = normalizePropertyType(filters.type);
+  const location = normalizeFilterText(filters.location);
+
+  if (operation) params.set(propertyFilterParamNames.operation, normalizeFilterText(operation));
+  if (type) params.set(propertyFilterParamNames.type, normalizeFilterText(type));
+  if (location) params.set(propertyFilterParamNames.location, location);
+  if (filters.currency && filters.maxPrice && Number.isFinite(filters.maxPrice) && filters.maxPrice > 0) {
+    params.set(propertyFilterParamNames.currency, filters.currency);
+    params.set(propertyFilterParamNames.maxPrice, filters.maxPrice.toString());
+  }
+  if (filters.bedrooms && Number.isInteger(filters.bedrooms) && filters.bedrooms > 0) {
+    params.set(propertyFilterParamNames.bedrooms, filters.bedrooms.toString());
+  }
+
+  return params;
 }
 
 function pickThresholds(values: number[], limit = 6) {
