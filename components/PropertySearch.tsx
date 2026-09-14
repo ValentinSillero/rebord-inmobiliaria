@@ -3,6 +3,7 @@
 import { Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { AccessibleSelect, type AccessibleSelectOption } from '@/components/AccessibleSelect';
 import {
   createPropertyFilterSearchParams,
   createFacetedPropertyFilterOptions,
@@ -97,15 +98,37 @@ export function PropertySearch({ compact = false, options, facetRecords, initial
     updateFilters({ currency: currency as PropertyCurrency, maxPrice: Number(amount) });
   }
 
+  const operationOptions: AccessibleSelectOption[] = [
+    { value: '', label: 'Todas' },
+    ...availableOptions.operations.map(value => ({ value, label: value })),
+  ];
+  const typeOptions: AccessibleSelectOption[] = [
+    { value: '', label: 'Todas' },
+    ...availableOptions.types.map(value => ({ value, label: value })),
+  ];
+  const locationOptions: AccessibleSelectOption[] = [
+    { value: '', label: 'Todas' },
+    ...availableOptions.locations.map(value => ({ value, label: value })),
+  ];
+  const bedroomOptions: AccessibleSelectOption[] = [
+    { value: '', label: 'Todos' },
+    ...availableOptions.bedrooms.map(value => ({ value: value.toString(), label: `${value}+` })),
+  ];
+  const priceOptions: AccessibleSelectOption[] = [
+    { value: '', label: 'Sin límite' },
+    ...availableOptions.prices.map(option => ({
+      value: option.value,
+      label: option.label,
+      group: option.currency,
+    })),
+  ];
+
   return <form className={`property-search ${compact ? 'property-search-page' : ''}`} onSubmit={submit}>
-    <label>Operación<select value={filters.operation} onChange={event => updateFilters({ operation: event.target.value })}><option value="">Todas</option>{availableOptions.operations.map(value => <option value={value} key={value}>{value}</option>)}</select></label>
-    <label>Tipo de propiedad<select value={filters.type} onChange={event => updateFilters({ type: event.target.value })}><option value="">Todas</option>{availableOptions.types.map(value => <option value={value} key={value}>{value}</option>)}</select></label>
-    <label>Ubicación<select value={filters.location} onChange={event => updateFilters({ location: event.target.value })}><option value="">Todas</option>{availableOptions.locations.map(value => <option value={value} key={value}>{value}</option>)}</select></label>
-    {compact && <label>Dormitorios<select value={filters.bedrooms?.toString() || ''} onChange={event => updateFilters({ bedrooms: event.target.value ? Number(event.target.value) : null })}><option value="">Todos</option>{availableOptions.bedrooms.map(value => <option value={value} key={value}>{value}+</option>)}</select></label>}
-    <label>Precio<select value={priceValue(filters)} onChange={event => changePrice(event.target.value)}><option value="">Sin límite</option>{(['USD', 'ARS'] as const).map(currency => {
-      const prices = availableOptions.prices.filter(option => option.currency === currency);
-      return prices.length > 0 ? <optgroup label={currency} key={currency}>{prices.map(option => <option value={option.value} key={option.value}>{option.label}</option>)}</optgroup> : null;
-    })}</select></label>
+    <AccessibleSelect id="operation-filter" label="Operación" value={filters.operation} options={operationOptions} onChange={value => updateFilters({ operation: value })} />
+    <AccessibleSelect id="type-filter" label="Tipo de propiedad" value={filters.type} options={typeOptions} onChange={value => updateFilters({ type: value })} />
+    <AccessibleSelect id="location-filter" label="Ubicación" value={filters.location} options={locationOptions} onChange={value => updateFilters({ location: value })} />
+    {compact && <AccessibleSelect id="bedrooms-filter" label="Dormitorios" value={filters.bedrooms?.toString() || ''} options={bedroomOptions} onChange={value => updateFilters({ bedrooms: value ? Number(value) : null })} />}
+    <AccessibleSelect id="price-filter" label="Precio" value={priceValue(filters)} options={priceOptions} onChange={changePrice} />
     <button className="button search-button" type="submit"><Search /> Buscar</button>
   </form>;
 }
