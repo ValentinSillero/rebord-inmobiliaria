@@ -88,7 +88,7 @@ export default async function PropertiesPage({ searchParams }: { searchParams: P
             compact
             options={propertyFilterOptions}
             facetRecords={propertyFilterRecords}
-            initialFilters={filters}
+            appliedFilters={filters}
             initialSort={sort}
             key={JSON.stringify(filters)}
           />
