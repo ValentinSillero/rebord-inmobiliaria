@@ -68,7 +68,7 @@ export default async function PropertiesPage({ searchParams }: { searchParams: P
   }
   const pageStart = (currentPage - 1) * PROPERTIES_PER_PAGE;
   const pageProperties = sortedProperties.slice(pageStart, pageStart + PROPERTIES_PER_PAGE);
-  const hasFilters = Boolean(filters.operation || filters.type || filters.location || filters.bedrooms || filters.maxPrice);
+  const hasFilters = Boolean(filters.operation || filters.type || filters.location || filters.bedrooms || filters.maxPrice || filters.minPriceExclusive);
   const queryString = toQueryString(currentSearchParams);
 
   return <>

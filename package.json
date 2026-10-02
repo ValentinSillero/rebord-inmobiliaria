@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test:prices": "tsx scripts/audit-property-prices.ts",
     "db:migration:run": "tsx scripts/db.ts migration:run",
     "db:migration:revert": "tsx scripts/db.ts migration:revert",
     "db:migration:show": "tsx scripts/db.ts migration:show",

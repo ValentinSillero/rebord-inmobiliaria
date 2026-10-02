@@ -56,6 +56,7 @@ const emptyFilters: PropertyFilterState = {
   bedrooms: null,
   currency: null,
   maxPrice: null,
+  minPriceExclusive: null,
 };
 
 for (const location of propertyFilterOptions.locations) {

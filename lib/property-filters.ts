@@ -21,6 +21,7 @@ export type PropertyFilterState = {
   bedrooms: number | null;
   currency: PropertyCurrency | null;
   maxPrice: number | null;
+  minPriceExclusive: number | null;
 };
 
 export type PropertyPriceOption = {
@@ -28,6 +29,7 @@ export type PropertyPriceOption = {
   label: string;
   currency: PropertyCurrency;
   amount: number;
+  comparison: 'max' | 'above';
 };
 
 export type PropertyFilterOptions = {
@@ -58,7 +60,32 @@ export const propertyFilterParamNames = {
   bedrooms: 'dormitorios',
   currency: 'moneda',
   maxPrice: 'precio',
+  minPriceExclusive: 'precioMin',
 } as const;
+
+const usdPriceFormatter = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 });
+const usdPriceThresholds = [50000, 100000, 150000, 200000, 250000, 300000] as const;
+
+export function formatUsdPrice(amount: number) {
+  return `USD ${usdPriceFormatter.format(amount)}`;
+}
+
+export const usdPriceFilterOptions: PropertyPriceOption[] = [
+  ...usdPriceThresholds.map(amount => ({
+    currency: 'USD' as const,
+    amount,
+    comparison: 'max' as const,
+    value: `max:${amount}`,
+    label: `Hasta ${formatUsdPrice(amount)}`,
+  })),
+  {
+    currency: 'USD',
+    amount: 300000,
+    comparison: 'above',
+    value: 'above:300000',
+    label: `Más de ${formatUsdPrice(300000)}`,
+  },
+];
 
 const numberWords: Record<string, number> = {
   un: 1,
@@ -228,18 +255,22 @@ export function parsePropertyFilterState(
   const requestedLocation = normalizeFilterText(firstSearchParamValue(searchParams[propertyFilterParamNames.location]))
     .replace(/,? entre rios$/, '');
   const location = options.locations.find(value => normalizeFilterText(value) === requestedLocation) || '';
-  const currencyValue = firstSearchParamValue(searchParams[propertyFilterParamNames.currency]).toUpperCase();
-  const currency: PropertyCurrency | null = currencyValue === 'USD' || currencyValue === 'ARS' ? currencyValue : null;
   const maxPriceValue = Number(firstSearchParamValue(searchParams[propertyFilterParamNames.maxPrice]));
+  const minPriceExclusiveValue = Number(firstSearchParamValue(searchParams[propertyFilterParamNames.minPriceExclusive]));
   const bedroomValue = Number(firstSearchParamValue(searchParams[propertyFilterParamNames.bedrooms]));
+  const maxPrice = Number.isFinite(maxPriceValue) && maxPriceValue > 0 ? maxPriceValue : null;
+  const minPriceExclusive = !maxPrice && Number.isFinite(minPriceExclusiveValue) && minPriceExclusiveValue > 0
+    ? minPriceExclusiveValue
+    : null;
 
   return {
     operation: normalizeOperation(firstSearchParamValue(searchParams[propertyFilterParamNames.operation])),
     type: normalizePropertyType(firstSearchParamValue(searchParams[propertyFilterParamNames.type])),
     location,
     bedrooms: Number.isInteger(bedroomValue) && bedroomValue > 0 ? bedroomValue : null,
-    currency,
-    maxPrice: currency && Number.isFinite(maxPriceValue) && maxPriceValue > 0 ? maxPriceValue : null,
+    currency: maxPrice || minPriceExclusive ? 'USD' : null,
+    maxPrice,
+    minPriceExclusive,
   };
 }
 
@@ -252,9 +283,12 @@ export function createPropertyFilterSearchParams(filters: PropertyFilterState) {
   if (operation) params.set(propertyFilterParamNames.operation, normalizeFilterText(operation));
   if (type) params.set(propertyFilterParamNames.type, normalizeFilterText(type));
   if (location) params.set(propertyFilterParamNames.location, location);
-  if (filters.currency && filters.maxPrice && Number.isFinite(filters.maxPrice) && filters.maxPrice > 0) {
-    params.set(propertyFilterParamNames.currency, filters.currency);
+  if (filters.maxPrice && Number.isFinite(filters.maxPrice) && filters.maxPrice > 0) {
+    params.set(propertyFilterParamNames.currency, 'USD');
     params.set(propertyFilterParamNames.maxPrice, filters.maxPrice.toString());
+  } else if (filters.minPriceExclusive && Number.isFinite(filters.minPriceExclusive) && filters.minPriceExclusive > 0) {
+    params.set(propertyFilterParamNames.currency, 'USD');
+    params.set(propertyFilterParamNames.minPriceExclusive, filters.minPriceExclusive.toString());
   }
   if (filters.bedrooms && Number.isInteger(filters.bedrooms) && filters.bedrooms > 0) {
     params.set(propertyFilterParamNames.bedrooms, filters.bedrooms.toString());
@@ -263,23 +297,12 @@ export function createPropertyFilterSearchParams(filters: PropertyFilterState) {
   return params;
 }
 
-function pickThresholds(values: number[], limit = 6) {
-  const unique = [...new Set(values)].sort((a, b) => a - b);
-  if (unique.length <= limit) return unique;
-  const indexes = Array.from({ length: limit }, (_, index) => Math.round(index * (unique.length - 1) / (limit - 1)));
-  return [...new Set(indexes.map(index => unique[index]))];
-}
-
 export function createPropertyFilterOptions(properties: PropertyFilterRecord[]): PropertyFilterOptions {
   const operations = [...new Set(properties.map(property => normalizeOperation(property.operation)).filter(Boolean))];
   const types = [...new Set(properties.map(property => property.type).filter((value): value is string => Boolean(value)))].sort((a, b) => a.localeCompare(b, 'es'));
   const locations = [...new Set(properties.map(property => property.location).filter((value): value is string => Boolean(value)))].sort((a, b) => a.localeCompare(b, 'es'));
   const bedrooms = [...new Set(properties.flatMap(property => property.bedroomCounts || (property.bedrooms ? [property.bedrooms] : [])))].sort((a, b) => a - b);
-  const formatter = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 });
-  const prices = (['USD', 'ARS'] as const).flatMap(currency => pickThresholds(properties
-    .filter(property => property.currency === currency)
-    .flatMap(property => property.prices || (property.price ? [property.price] : [])))
-    .map(amount => ({ currency, amount, value: `${currency}:${amount}`, label: `Hasta ${currency} ${formatter.format(amount)}` })));
+  const prices = usdPriceFilterOptions;
 
   return { operations, types, locations, bedrooms, prices };
 }
@@ -293,7 +316,6 @@ export function createFacetedPropertyFilterOptions(
   const types = new Set<string>();
   const locations = new Set<string>();
   let maximumBedrooms = 0;
-  const minimumPrices: Partial<Record<PropertyCurrency, number>> = {};
 
   for (const property of properties) {
     const bedroomCounts = property.bedroomCounts || (property.bedrooms ? [property.bedrooms] : []);
@@ -302,8 +324,7 @@ export function createFacetedPropertyFilterOptions(
     const typeMatches = !filters.type || property.type === filters.type;
     const locationMatches = !filters.location || property.location === filters.location;
     const bedroomsMatch = !filters.bedrooms || bedroomCounts.some(count => count >= filters.bedrooms!);
-    const priceMatches = !filters.currency || !filters.maxPrice
-      || (property.currency === filters.currency && prices.some(price => price <= filters.maxPrice!));
+    const priceMatches = matchesPriceFilter(property.currency, prices, filters);
 
     // Operación remains a top-level switch, but its values still come only from real data.
     const operation = normalizeOperation(property.operation);
@@ -318,10 +339,6 @@ export function createFacetedPropertyFilterOptions(
     if (operationMatches && typeMatches && locationMatches && priceMatches && bedroomCounts.length > 0) {
       maximumBedrooms = Math.max(maximumBedrooms, ...bedroomCounts);
     }
-    if (operationMatches && typeMatches && locationMatches && bedroomsMatch && property.currency && prices.length > 0) {
-      const minimum = Math.min(...prices);
-      minimumPrices[property.currency] = Math.min(minimumPrices[property.currency] ?? Number.POSITIVE_INFINITY, minimum);
-    }
   }
 
   return {
@@ -329,11 +346,19 @@ export function createFacetedPropertyFilterOptions(
     types: baseOptions.types.filter(value => types.has(value)),
     locations: baseOptions.locations.filter(value => locations.has(value)),
     bedrooms: baseOptions.bedrooms.filter(value => value <= maximumBedrooms),
-    prices: baseOptions.prices.filter(option => {
-      const minimum = minimumPrices[option.currency];
-      return minimum !== undefined && minimum <= option.amount;
-    }),
+    prices: baseOptions.prices,
   };
+}
+
+function matchesPriceFilter(
+  currency: PropertyCurrency | null | undefined,
+  prices: number[],
+  filters: PropertyFilterState,
+) {
+  if (!filters.maxPrice && !filters.minPriceExclusive) return true;
+  if (currency !== 'USD' || prices.length === 0) return false;
+  if (filters.maxPrice) return prices.some(price => price <= filters.maxPrice!);
+  return prices.some(price => price > filters.minPriceExclusive!);
 }
 
 export function filterProperties<T extends PropertyFilterRecord>(properties: T[], filters: PropertyFilterState) {
@@ -348,6 +373,6 @@ export function filterProperties<T extends PropertyFilterRecord>(properties: T[]
       && (!type || property.type === type)
       && (!location || normalizeFilterText(property.location || '') === location)
       && (!filters.bedrooms || bedroomCounts.some(count => count >= filters.bedrooms!))
-      && (!filters.currency || !filters.maxPrice || (property.currency === filters.currency && prices.some(price => price <= filters.maxPrice!)));
+      && matchesPriceFilter(property.currency, prices, filters);
   });
 }
