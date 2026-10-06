@@ -3,6 +3,13 @@ import type { ImageLoaderProps } from 'next/image';
 const CLOUDINARY_HOSTNAME = 'res.cloudinary.com';
 const IMAGE_UPLOAD_PATH = '/image/upload/';
 
+export const CLOUDINARY_IMAGE_WIDTHS = [256, 640, 1200] as const;
+
+export function allowedCloudinaryImageWidth(requestedWidth: number) {
+  return CLOUDINARY_IMAGE_WIDTHS.find(width => width >= requestedWidth)
+    ?? CLOUDINARY_IMAGE_WIDTHS[CLOUDINARY_IMAGE_WIDTHS.length - 1];
+}
+
 export function isCloudinaryImageUrl(src: string) {
   try {
     const url = new URL(src);
@@ -22,7 +29,7 @@ export function cloudinaryImageLoader({ src, width }: ImageLoaderProps) {
     return src;
   }
 
-  const transformation = `f_auto,q_auto,c_limit,w_${width}`;
+  const transformation = `f_auto,q_auto,c_limit,w_${allowedCloudinaryImageWidth(width)}`;
   const insertionPoint = uploadIndex + IMAGE_UPLOAD_PATH.length;
   url.pathname = `${url.pathname.slice(0, insertionPoint)}${transformation}/${url.pathname.slice(insertionPoint)}`;
 

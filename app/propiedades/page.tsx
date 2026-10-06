@@ -16,7 +16,7 @@ import {
 } from '@/lib/property-filters';
 
 const PROPERTIES_PER_PAGE = 12;
-const listingImageSizes = '(max-width: 360px) calc(100vw - 24px), (max-width: 767px) calc(100vw - 32px), (max-width: 1150px) calc(50vw - 36px), (max-width: 1280px) calc(33.333vw - 32px), 395px';
+const listingImageSizes = '640px';
 
 function firstValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] || '' : value || '';

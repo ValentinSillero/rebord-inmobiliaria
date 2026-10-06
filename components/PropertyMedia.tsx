@@ -11,11 +11,9 @@ type PropertyMediaProps = {
   alt: string;
   priority?: boolean;
   sizes: string;
-  loading?: 'eager' | 'lazy';
-  onLoad?: () => void;
 };
 
-export function PropertyMedia({ item, alt, priority = false, sizes, loading, onLoad }: PropertyMediaProps) {
+export function PropertyMedia({ item, alt, priority = false, sizes }: PropertyMediaProps) {
   const [failed, setFailed] = useState(false);
 
   useEffect(() => setFailed(false), [item?.src]);
@@ -34,12 +32,11 @@ export function PropertyMedia({ item, alt, priority = false, sizes, loading, onL
     alt={alt}
     fill
     priority={priority}
-    loading={priority ? undefined : loading}
+    loading={priority ? undefined : 'lazy'}
     placeholder="blur"
     blurDataURL={PROPERTY_IMAGE_BLUR_DATA_URL}
     quality={90}
     sizes={sizes}
-    onLoad={onLoad}
     onError={() => setFailed(true)}
   />;
 }

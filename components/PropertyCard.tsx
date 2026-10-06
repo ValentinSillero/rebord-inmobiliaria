@@ -15,11 +15,10 @@ type PropertyCardProps = {
   imageSizes?: string;
 };
 
-const DEFAULT_CARD_IMAGE_SIZES = '(max-width: 360px) calc(100vw - 24px), (max-width: 767px) calc(100vw - 32px), (max-width: 1150px) calc(50vw - 34px), (max-width: 1280px) calc(25vw - 27px), 293px';
+const DEFAULT_CARD_IMAGE_SIZES = '640px';
 
 export function PropertyCard({ property, priority = false, imageSizes = DEFAULT_CARD_IMAGE_SIZES }: PropertyCardProps) {
   const [currentImage, setCurrentImage] = useState(0);
-  const [currentImageLoaded, setCurrentImageLoaded] = useState(false);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const suppressNavigation = useRef(false);
   const images = property.media
@@ -30,13 +29,8 @@ export function PropertyCard({ property, priority = false, imageSizes = DEFAULT_
   const displayPrice = property.priceLabel ? removeEmojis(property.priceLabel) : null;
 
   function moveImage(step: number) {
-    setCurrentImageLoaded(false);
     setCurrentImage(index => getCircularIndex(index, step, images.length));
   }
-
-  const nextImage = images.length > 1
-    ? images[getCircularIndex(currentImage, 1, images.length)]
-    : null;
 
   function handleTouchStart(event: TouchEvent<HTMLAnchorElement>) {
     const touch = event.touches[0];
@@ -80,11 +74,7 @@ export function PropertyCard({ property, priority = false, imageSizes = DEFAULT_
           alt={`${displayName} - foto ${currentImage + 1}`}
           priority={priority && currentImage === 0}
           sizes={imageSizes}
-          onLoad={() => setCurrentImageLoaded(true)}
         />
-        {currentImageLoaded && nextImage && <span className="carousel-image-preload" aria-hidden="true">
-          <PropertyMedia item={nextImage} alt="" sizes={imageSizes} loading="eager" />
-        </span>}
       </Link>
       <span className={`operation operation-${property.operation.toLowerCase()}`}>{property.operation}</span>
       {images.length > 1 && <>

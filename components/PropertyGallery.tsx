@@ -15,14 +15,12 @@ export function PropertyGallery({ media, propertyName }: PropertyGalleryProps) {
   const photos = media.filter(item => item.kind === 'image');
   const items = photos.length > 0 ? photos : media;
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [currentImageLoaded, setCurrentImageLoaded] = useState(false);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const thumbnailStrip = useRef<HTMLDivElement | null>(null);
   const current = items[currentIndex] || null;
 
   useEffect(() => {
     setCurrentIndex(0);
-    setCurrentImageLoaded(false);
   }, [propertyName]);
 
   useEffect(() => {
@@ -38,17 +36,14 @@ export function PropertyGallery({ media, propertyName }: PropertyGalleryProps) {
   }, [currentIndex]);
 
   function move(step: number) {
-    setCurrentImageLoaded(false);
     setCurrentIndex(index => getCircularIndex(index, step, items.length));
   }
 
   function selectImage(index: number) {
-    setCurrentImageLoaded(false);
     setCurrentIndex(index);
   }
 
-  const mainImageSizes = '(max-width: 360px) calc(100vw - 24px), (max-width: 767px) calc(100vw - 32px), (max-width: 1280px) calc(100vw - 48px), 1232px';
-  const next = items.length > 1 ? items[getCircularIndex(currentIndex, 1, items.length)] : null;
+  const mainImageSizes = '1200px';
 
   function handleTouchStart(event: TouchEvent<HTMLDivElement>) {
     const touch = event.touches[0];
@@ -75,12 +70,8 @@ export function PropertyGallery({ media, propertyName }: PropertyGalleryProps) {
           alt={`${propertyName} - ${currentIndex + 1}`}
           priority={currentIndex === 0}
           sizes={mainImageSizes}
-          onLoad={() => setCurrentImageLoaded(true)}
         />
       </div>
-      {currentImageLoaded && next?.kind === 'image' && <span className="carousel-image-preload" aria-hidden="true">
-        <PropertyMedia item={next} alt="" sizes={mainImageSizes} loading="eager" />
-      </span>}
       {items.length > 1 && <>
         <button type="button" className="gallery-arrow gallery-arrow-left" aria-label="Ver imagen anterior" onClick={() => move(-1)}><ChevronLeft /></button>
         <button type="button" className="gallery-arrow gallery-arrow-right" aria-label="Ver imagen siguiente" onClick={() => move(1)}><ChevronRight /></button>
@@ -97,7 +88,7 @@ export function PropertyGallery({ media, propertyName }: PropertyGalleryProps) {
         onClick={() => selectImage(index)}
       >
         {item.kind === 'image'
-          ? <PropertyMedia item={item} alt="" sizes="(max-width: 767px) 72px, 90px" />
+          ? <PropertyMedia item={item} alt="" sizes="256px" />
           : <span className="video-thumbnail"><Play /><small>Video {index + 1}</small></span>}
       </button>)}
     </div>}
