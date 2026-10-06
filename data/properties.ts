@@ -5,6 +5,7 @@ import instagramImport2023 from './import/rebord_importacion_web_2023.json';
 import instagramImport2024 from './import/rebord_importacion_web_2024.json';
 import instagramImport2025 from './import/rebord_importacion_web_2025.json';
 import instagramImport2026 from './import/rebord_importacion_web_2026.json';
+import cloudinaryMediaMap from './cloudinary-media-map.json';
 import { auditedPropertyLocation } from './property-location-audit';
 import { removeEmojis } from '@/lib/text';
 import { cleanInstagramDescription, parseInstagramDescription, type PropertyDescriptionSections } from '@/lib/property-description';
@@ -73,7 +74,7 @@ const imageExtension = /\.(?:avif|gif|jpe?g|png|webp)$/i;
 const omittedImportIds = new Set(['REB-2025-036', 'REB-2022-003']);
 const nonPropertyImportIds = new Set(['REB-2021-029']);
 
-// Cambiar a true después de copiar la exportación dentro de public/media/.
+// La auditoría de Cloudinary valida que todos los medios publicados estén disponibles.
 const instagramMediaAvailable = true;
 
 function operationFromOriginal(post: InstagramImport): Property['operation'] {
@@ -85,7 +86,15 @@ function operationFromOriginal(post: InstagramImport): Property['operation'] {
 }
 
 function publicMediaPath(path: string) {
-  return `/${path.replace(/^\/+/, '')}`;
+  if (/^https:\/\//i.test(path)) return path;
+  const localPath = `/${path.replace(/^\/+/, '')}`;
+  const cloudinaryUrl = (cloudinaryMediaMap as Record<string, string>)[localPath];
+
+  if (!cloudinaryUrl) {
+    throw new Error(`Falta la URL de Cloudinary para ${localPath}`);
+  }
+
+  return cloudinaryUrl;
 }
 
 function repairLegacyImportText(text: string) {
@@ -227,26 +236,31 @@ function propertyMedia(paths: string[], kind: PropertyMedia['kind']): PropertyMe
   return paths.map(src => ({ src, kind, available: true }));
 }
 
-const casaPuebloLiebigGallery = Array.from(
+const casaPuebloLiebigLocalMedia = Array.from(
   { length: 14 },
   (_, index) => `/propiedades/2026/casa-pueblo-liebig/${String(index + 1).padStart(2, '0')}.jpeg.jpeg`,
 );
-const complejoTuristicoColonGallery = Array.from(
+const casaPuebloLiebigGallery = casaPuebloLiebigLocalMedia.map(publicMediaPath);
+const complejoTuristicoColonLocalMedia = Array.from(
   { length: 4 },
   (_, index) => `/propiedades/2026/complejo-turistico-colon/${String(index + 1).padStart(2, '0')}.jpeg.jpeg`,
 );
-const loteColonP3Gallery = Array.from(
+const complejoTuristicoColonGallery = complejoTuristicoColonLocalMedia.map(publicMediaPath);
+const loteColonP3LocalMedia = Array.from(
   { length: 7 },
   (_, index) => `/propiedades/2026/lote-colon-p3/${String(index + 1).padStart(2, '0')}.jpeg.jpeg`,
 );
-const dosLotesColonGallery = Array.from(
+const loteColonP3Gallery = loteColonP3LocalMedia.map(publicMediaPath);
+const dosLotesColonLocalMedia = Array.from(
   { length: 10 },
   (_, index) => `/propiedades/2026/dos-lotes-colon/${String(index + 1).padStart(2, '0')}.jpeg.jpeg`,
 );
-const alquilerGalponEstrenarVideos = Array.from(
+const dosLotesColonGallery = dosLotesColonLocalMedia.map(publicMediaPath);
+const alquilerGalponEstrenarLocalMedia = Array.from(
   { length: 2 },
   (_, index) => `/propiedades/2026/alquiler-galpon-estrenar/${String(index + 1).padStart(2, '0')}.jpeg.mp4`,
 );
+const alquilerGalponEstrenarVideos = alquilerGalponEstrenarLocalMedia.map(publicMediaPath);
 
 const newProperties2026: Property[] = [
   {
@@ -270,7 +284,7 @@ const newProperties2026: Property[] = [
     rooms: null,
     bedroomCounts: [2],
     roomCounts: [],
-    originalMediaPaths: casaPuebloLiebigGallery.map(path => path.slice(1)),
+    originalMediaPaths: casaPuebloLiebigLocalMedia.map(path => path.slice(1)),
     descriptionSections: {
       description: [
         'Casa ubicada en Pueblo Liebig, con la fachada histórica colonial característica de la zona. La propiedad se encuentra para remodelar y ofrece frente sobre dos calles.',
@@ -306,7 +320,7 @@ const newProperties2026: Property[] = [
     rooms: null,
     bedroomCounts: [1, 2],
     roomCounts: [],
-    originalMediaPaths: complejoTuristicoColonGallery.map(path => path.slice(1)),
+    originalMediaPaths: complejoTuristicoColonLocalMedia.map(path => path.slice(1)),
     descriptionSections: {
       description: [
         'Complejo turístico ubicado sobre Ruta 130, a metros del puente Artalaz, en Colón.',
@@ -344,7 +358,7 @@ const newProperties2026: Property[] = [
     rooms: null,
     bedroomCounts: [],
     roomCounts: [],
-    originalMediaPaths: loteColonP3Gallery.map(path => path.slice(1)),
+    originalMediaPaths: loteColonP3LocalMedia.map(path => path.slice(1)),
     descriptionSections: {
       description: [
         'Lote ubicado sobre calle Rocamora, entre 3 de Febrero y Lavalle, en Colón, a pocos metros de Playa Norte.',
@@ -381,7 +395,7 @@ const newProperties2026: Property[] = [
     rooms: null,
     bedroomCounts: [],
     roomCounts: [],
-    originalMediaPaths: dosLotesColonGallery.map(path => path.slice(1)),
+    originalMediaPaths: dosLotesColonLocalMedia.map(path => path.slice(1)),
     descriptionSections: {
       description: [
         'Dos lotes ubicados en la zona oeste de Colón, sobre calle Paysandú entre Boulevard Cabo Pereyra y calle Piamonte.',
@@ -418,7 +432,7 @@ const newProperties2026: Property[] = [
     rooms: null,
     bedroomCounts: [],
     roomCounts: [],
-    originalMediaPaths: alquilerGalponEstrenarVideos.map(path => path.slice(1)),
+    originalMediaPaths: alquilerGalponEstrenarLocalMedia.map(path => path.slice(1)),
     descriptionSections: {
       description: [
         'Galpón a estrenar ubicado en Colón, a metros de calle López Jordán y Noailles.',

@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import type { PropertyMedia as PropertyMediaType } from '@/data/properties';
+import { cloudinaryImageLoader, isCloudinaryImageUrl } from '@/lib/cloudinary-image-loader';
 import { PROPERTY_IMAGE_BLUR_DATA_URL } from '@/lib/image-placeholder';
 
 type PropertyMediaProps = {
@@ -29,6 +30,7 @@ export function PropertyMedia({ item, alt, priority = false, sizes, loading, onL
 
   return <Image
     src={item.src}
+    loader={isCloudinaryImageUrl(item.src) ? cloudinaryImageLoader : undefined}
     alt={alt}
     fill
     priority={priority}

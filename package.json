@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "audit:cloudinary": "tsx scripts/audit-cloudinary-media.ts",
     "test:prices": "tsx scripts/audit-property-prices.ts",
     "db:migration:run": "tsx scripts/db.ts migration:run",
     "db:migration:revert": "tsx scripts/db.ts migration:revert",
@@ -14,6 +15,7 @@
     "db:test": "tsx scripts/db.ts test"
   },
   "dependencies": {
+    "cloudinary": "^2.11.0",
     "dotenv": "^17.4.2",
     "lucide-react": "^0.468.0",
     "next": "^15.1.0",
